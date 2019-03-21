@@ -1,6 +1,6 @@
 ## GDX Looker TheQ SDPR
 
-This Block represents an instance of the Government of British Columbia’s Service BC service analytics project for SDPR. It is based on [Snowplow](https://snowplowanalytics.com/) and [Looker](https://looker.com/) .
+This Block represents an instance of the Government of British Columbia’s Service BC service analytics project for SDPR. It is based on [Snowplow](https://snowplowanalytics.com/) and [Looker](https://looker.com/).
 
 ## Project Status
 
@@ -8,7 +8,8 @@ This project is in production and the GDX Analytics Team will continue to update
 
 ## Relevant Repositories
 [GDX-Analytics-Looker-cfms_block/](https://github.com/bcgov/GDX-Analytics-Looker-cfms_block)
-Represents an instance of the Government of British Columbia’s Service BC [LookerML](https://docs.looker.com/data-modeling/learning-lookml/what-is-lookml) project.
+
+This Block represents an instance of the Government of British Columbia’s Service BC service analytics project. It is the parent of this project. 
 
 [GDX-Analytics/](https://github.com/bcgov/GDX-Analytics/)
 
