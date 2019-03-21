@@ -11,23 +11,21 @@ include: "*.view"
 # For now, don't include the dashboard we built. There is an editable version in the Shared -> Service BC Folder
 # include: "*.dashboard"
 
-explore: cfms_poc {
+explore: theq_sdpr_poc {
   access_filter: {
     field: office_filter # use the version of office names that have "_" instead of " "
     user_attribute: office_name
   }
   persist_for: "5 minutes"
 }
-explore: cfms_poc_no_filter {
-  from: cfms_poc
+explore: theq_sdpr_poc_no_filter {
+  from: theq_sdpr_poc
   persist_for: "5 minutes"
 
 }
 
-# A copy of the original CFMS / TheQ model for comparisons
-explore: cfms_old {}
 
-explore: cfms_dev {
+explore: theq_sdpr_dev {
   persist_for: "5 minutes"
 }
 

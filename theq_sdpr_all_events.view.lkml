@@ -1,6 +1,6 @@
 view: cfms_all_events {
   derived_table: {
-    sql: -- Build a view containing all events using the name_tracker "CFMS_poc"
+    sql: -- Build a view containing all events using the name_tracker "TheQ_SDPR"
       -- this will include all fields for all possible events.
       -- NOTE: we are ignoring instances where there is no client_id
       SELECT
@@ -36,7 +36,7 @@ view: cfms_all_events {
       ON ev.event_id = fi.root_id
       LEFT JOIN atomic.ca_bc_gov_cfmspoc_hold_1 AS ho
       ON ev.event_id = ho.root_id
-      WHERE ev.name_tracker IN ('CFMS_poc', 'TheQ_dev', 'TheQ_test', 'TheQ_prod') AND client_id IS NOT NULL
+      WHERE ev.name_tracker IN ('TheQ_SDPR_dev', 'TheQ_SDPR_test', 'TheQ_SDPR_prod') AND client_id IS NOT NULL
       ORDER BY event_time, client_id, service_count
           ;;
           # https://docs.looker.com/data-modeling/learning-lookml/caching

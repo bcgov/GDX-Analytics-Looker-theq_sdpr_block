@@ -1,4 +1,4 @@
-view: cfms_poc {
+view: theq_sdpr_poc {
   derived_table: {
     sql:
       SELECT theq_sdpr_step1.client_id, service_count, namespace, welcome_time, latest_time,
@@ -106,8 +106,8 @@ view: cfms_poc {
     link: {
       label: "Service Time by Channel"
       url: "
-      {% assign table_calc = '[{\"table_calculation\":\"total_time_credit\",\"label\":\"Total Time Credit\",\"expression\":\"${cfms_poc.prep_duration_total}+${cfms_poc.service_creation_duration_total}+${cfms_poc.serve_duration_total}\",\"value_format\":\"[h]:mm:ss\",\"value_format_name\":null,\"_kind_hint\":\"measure\",\"_type_hint\":\"number\"},{\"table_calculation\":\"total_time_credit_percent\",\"label\":\"Total Time Credit Percent\",\"expression\":\"${total_time_credit}/sum(pivot_row(${total_time_credit}))\",\"value_format\":null,\"value_format_name\":\"percent_1\",\"_kind_hint\":\"measure\",\"_type_hint\":\"number\"}]' %}
-      {% assign filter_config = '{\"cfms_poc.office_name\":[{\"type\":\"=\",\"values\":[{\"constant\":\"\"},{}],\"id\":3,\"error\":false}],\"cfms_poc.date\":[{\"type\":\"anytime\",\"values\":[{},{}],\"id\":4,\"error\":false}],\"cfms_poc.back_office\":[{\"type\":\"=\",\"values\":[{\"constant\":\"\"},{}],\"id\":5,\"error\":false}]}' %}
+      {% assign table_calc = '[{\"table_calculation\":\"total_time_credit\",\"label\":\"Total Time Credit\",\"expression\":\"${theq_sdrp_poc.prep_duration_total}+${theq_sdrp_poc.service_creation_duration_total}+${theq_sdrp_poc.serve_duration_total}\",\"value_format\":\"[h]:mm:ss\",\"value_format_name\":null,\"_kind_hint\":\"measure\",\"_type_hint\":\"number\"},{\"table_calculation\":\"total_time_credit_percent\",\"label\":\"Total Time Credit Percent\",\"expression\":\"${total_time_credit}/sum(pivot_row(${total_time_credit}))\",\"value_format\":null,\"value_format_name\":\"percent_1\",\"_kind_hint\":\"measure\",\"_type_hint\":\"number\"}]' %}
+      {% assign filter_config = '{\"theq_sdrp_poc.office_name\":[{\"type\":\"=\",\"values\":[{\"constant\":\"\"},{}],\"id\":3,\"error\":false}],\"theq_sdrp_poc.date\":[{\"type\":\"anytime\",\"values\":[{},{}],\"id\":4,\"error\":false}],\"theq_sdrp_poc.back_office\":[{\"type\":\"=\",\"values\":[{\"constant\":\"\"},{}],\"id\":5,\"error\":false}]}' %}
       {% assign vis_config = '
       {\"stacking\":\"percent\" ,
       \"colors\":[\"#991426\" ,
@@ -149,13 +149,13 @@ view: cfms_poc {
       \"show_silhouette\":false ,
       \"totals_color\":\"#808080\" ,
       \"type\":\"looker_column\" ,
-      \"hidden_fields\":[\"cfms_poc.prep_duration_total\" ,
-      \"cfms_poc.service_creation_duration_total\" ,
-      \"cfms_poc.serve_duration_total\" ,
+      \"hidden_fields\":[\"theq_sdrp_poc.prep_duration_total\" ,
+      \"theq_sdrp_poc.service_creation_duration_total\" ,
+      \"theq_sdrp_poc.serve_duration_total\" ,
       \"total_time_credit_percent\"] ,
       \"y_axes\":[]}' %}
 
-      {{ dummy_for_back_office._link }}&vis_config={{ vis_config | encode_uri }}&pivots=cfms_poc.channel&sorts=cfms_poc.channel 0,total_time_credit desc 3&limit=1000&column_limit=50&filter_config={{ filter_config | encode_uri }}&dynamic_fields={{ table_calc | replace: '  ', '' | encode_uri }}"
+      {{ dummy_for_back_office._link }}&vis_config={{ vis_config | encode_uri }}&pivots=theq_sdrp_poc.channel&sorts=theq_sdrp_poc.channel 0,total_time_credit desc 3&limit=1000&column_limit=50&filter_config={{ filter_config | encode_uri }}&dynamic_fields={{ table_calc | replace: '  ', '' | encode_uri }}"
 
     }
   }
@@ -833,7 +833,7 @@ view: cfms_poc {
       label: "Program Distribution"
       url: "
       {% assign table_calc = '[]' %}
-      {% assign filter_config = '{\"cfms_poc.office_name\":[{\"type\":\"=\",\"values\":[{\"constant\":\"\"},{}],\"id\":6,\"error\":false}],\"cfms_poc.program_name\":[{\"type\":\"=\",\"values\":[{\"constant\":\"Other\"},{}],\"id\":7,\"error\":false}],\"cfms_poc.date\":[{\"type\":\"past\",\"values\":[{\"constant\":\"60\",\"unit\":\"day\"},{}],\"id\":8,\"error\":false}]}' %}
+      {% assign filter_config = '{\"theq_sdrp_poc.office_name\":[{\"type\":\"=\",\"values\":[{\"constant\":\"\"},{}],\"id\":6,\"error\":false}],\"theq_sdrp_poc.program_name\":[{\"type\":\"=\",\"values\":[{\"constant\":\"Other\"},{}],\"id\":7,\"error\":false}],\"theq_sdrp_poc.date\":[{\"type\":\"past\",\"values\":[{\"constant\":\"60\",\"unit\":\"day\"},{}],\"id\":8,\"error\":false}]}' %}
       {% assign vis_config = '
       {\"stacking\":\"normal\" ,
       \"colors\":[\"#991426\" ,
@@ -879,7 +879,7 @@ view: cfms_poc {
       \"type\":\"looker_column\" ,
       \"hidden_fields\":[\"calculation_2\"]}' %}
 
-      {{ dummy._link }}&vis_config={{ vis_config | encode_uri }}&pivots=cfms_poc.channel&sorts=cfms_poc.channel 0,cfms_poc.transaction_count desc 6&limit=1000&column_limit=50&row_total=right&filter_config={{ filter_config| encode_uri }}&dynamic_fields={{ table_calc | replace: '  ', '' | encode_uri }}"
+      {{ dummy._link }}&vis_config={{ vis_config | encode_uri }}&pivots=theq_sdrp_poc.channel&sorts=theq_sdrp_poc.channel 0,theq_sdrp_poc.transaction_count desc 6&limit=1000&column_limit=50&row_total=right&filter_config={{ filter_config| encode_uri }}&dynamic_fields={{ table_calc | replace: '  ', '' | encode_uri }}"
     }
   }
   measure: dummy_service_count {
@@ -897,8 +897,8 @@ view: cfms_poc {
     link: {
       label: "Service Time"
       url: "
-      {% assign table_calc = '[{\"table_calculation\":\"average_service_time\",\"label\":\"Average Service Time\",\"expression\":\"${cfms_poc.prep_duration_per_visit_average}+${cfms_poc.serve_duration_per_visit_average}+${cfms_poc.service_creation_duration_per_visit_average}\",\"value_format\":\"[h]:mm:ss\",\"value_format_name\":null,\"_kind_hint\":\"measure\",\"_type_hint\":\"number\"}]' %}
-      {% assign filter_config = '{\"cfms_poc.office_name\":[{\"type\":\"=\",\"values\":[{\"constant\":\"\"},{}],\"id\":8,\"error\":false}],\"cfms_poc.program_name\":[{\"type\":\"=\",\"values\":[{\"constant\":\"\"},{}],\"id\":9,\"error\":false}],\"cfms_poc.date\":[{\"type\":\"anytime\",\"values\":[{},{}],\"id\":10,\"error\":false}],\"cfms_poc.back_office\":[{\"type\":\"=\",\"values\":[{\"constant\":\"Front Office\"},{}],\"id\":11,\"error\":false}]}' %}
+      {% assign table_calc = '[{\"table_calculation\":\"average_service_time\",\"label\":\"Average Service Time\",\"expression\":\"${theq_sdrp_poc.prep_duration_per_visit_average}+${theq_sdrp_poc.serve_duration_per_visit_average}+${theq_sdrp_poc.service_creation_duration_per_visit_average}\",\"value_format\":\"[h]:mm:ss\",\"value_format_name\":null,\"_kind_hint\":\"measure\",\"_type_hint\":\"number\"}]' %}
+      {% assign filter_config = '{\"theq_sdrp_poc.office_name\":[{\"type\":\"=\",\"values\":[{\"constant\":\"\"},{}],\"id\":8,\"error\":false}],\"theq_sdrp_poc.program_name\":[{\"type\":\"=\",\"values\":[{\"constant\":\"\"},{}],\"id\":9,\"error\":false}],\"theq_sdrp_poc.date\":[{\"type\":\"anytime\",\"values\":[{},{}],\"id\":10,\"error\":false}],\"theq_sdrp_poc.back_office\":[{\"type\":\"=\",\"values\":[{\"constant\":\"Front Office\"},{}],\"id\":11,\"error\":false}]}' %}
       {% assign vis_config = '
       {\"stacking\":\"\" ,
       \"colors\":[\"#991426\" ,
@@ -940,9 +940,9 @@ view: cfms_poc {
       \"show_silhouette\":false ,
       \"totals_color\":\"#808080\" ,
       \"type\":\"looker_column\" ,
-      \"hidden_fields\":[\"cfms_poc.prep_duration_per_visit_average\" ,
-      \"cfms_poc.service_creation_duration_per_visit_average\" ,
-      \"cfms_poc.serve_duration_per_visit_average\"] ,
+      \"hidden_fields\":[\"theq_sdrp_poc.prep_duration_per_visit_average\" ,
+      \"theq_sdrp_poc.service_creation_duration_per_visit_average\" ,
+      \"theq_sdrp_poc.serve_duration_per_visit_average\"] ,
       \"y_axes\":[]}' %}
 
       {{ dummy_service_count._link }}&vis_config={{ vis_config | encode_uri }}&sorts=average_service_time desc&limit=1000&column_limit=50&filter_config={{ filter_config | encode_uri }}&dynamic_fields={{ table_calc | replace: '  ', '' | encode_uri }}"
