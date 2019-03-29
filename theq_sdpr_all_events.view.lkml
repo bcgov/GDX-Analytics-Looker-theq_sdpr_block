@@ -1,4 +1,4 @@
-view: cfms_all_events {
+view: theq_sdpr_all_events {
   derived_table: {
     sql: -- Build a view containing all events using the name_tracker "TheQ_SDPR"
       -- this will include all fields for all possible events.

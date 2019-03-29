@@ -30,4 +30,4 @@ explore: theq_sdpr_dev {
 
 explore: cats {}
 
-explore: cfms_all_events {}
+explore: theq_sdpr_all_events {}
