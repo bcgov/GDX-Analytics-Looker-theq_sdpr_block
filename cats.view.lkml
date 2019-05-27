@@ -41,7 +41,7 @@ view: cats {
           LEFT JOIN servicebc.cats_sbc AS sbc ON gdx.port = sbc.source_translated_port AND abs(DATEDIFF('minute', gdx.govdate, sbc.firewall_time)) < 30
           -- Use sbc.office where it exists. If it is NULL, the try looking up the site based on the asset tag
           --LEFT JOIN servicebc.cats_info ON servicebc.cats_info.asset_tag = sbc.source_host_name AND sbc.source_host_name <> ''
-          LEFT JOIN servicebc.office_info ON servicebc.office_info.site = sbc.office AND end_date IS NULL -- for now, get the most recent office info
+          LEFT JOIN servicebc.sdpr_office_info ON servicebc.sdpr_office_info.site = sbc.office AND end_date IS NULL -- for now, get the most recent office info
           JOIN servicebc.datedimension AS dd on govdate::date = dd.datekey::date
           LEFT JOIN cmslite.metadata AS cms ON cms.hr_url = 'https://www2.gov.bc.ca' || SPLIT_PART(SPLIT_PART(get_string, ' ', 2), '?',1)
           LEFT JOIN cmslite.metadata AS cms_guid ON
