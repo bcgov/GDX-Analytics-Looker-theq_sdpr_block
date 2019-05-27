@@ -37,7 +37,7 @@ view: theq_sdpr_dev {
       ON ev.event_id = ho.root_id AND ev.collector_tstamp = ho.root_tstamp
   LEFT JOIN atomic.ca_bc_gov_cfmspoc_customerleft_2 AS cl
       ON ev.event_id = cl .root_id AND ev.collector_tstamp = cl.root_tstamp
-  LEFT JOIN servicebc.service_info AS si ON si.svccode = cs.program_id
+  LEFT JOIN servicebc.sdpr_service_info AS si ON si.svccode = cs.program_id
 
   WHERE ev.name_tracker IN ('TheQ_SDPR_dev')
     AND client_id IS NOT NULL
@@ -318,7 +318,7 @@ view: theq_sdpr_dev {
       LEFT JOIN agent_info ON agent_info.client_id = item_list.client_id AND agent_info.service_count = item_list.service_count AND agent_info.namespace = item_list.namespace
       LEFT JOIN finish_info ON finish_info.client_id = item_list.client_id AND finish_info.service_count = item_list.service_count AND finish_info.namespace = item_list.namespace
       LEFT JOIN flags ON flags.client_id = item_list.client_id AND flags.namespace = item_list.namespace
-      LEFT JOIN servicebc.office_info ON servicebc.office_info.rmsofficecode = office_id AND end_date IS NULL -- for now, get the most recent office info
+      LEFT JOIN servicebc.sdpr_office_info ON servicebc.sdpr_office_info.rmsofficecode = office_id AND end_date IS NULL -- for now, get the most recent office info
       JOIN servicebc.datedimension AS dd on item_list.welcome_time::date = dd.datekey::date
       GROUP BY item_list.namespace,
       item_list.client_id,
