@@ -233,11 +233,11 @@ view: theq_sdpr_dev {
          ELSE channel
         END AS channel_sort,
       -----------------------------------
-      -- Add a flag for back office transactions
-      CASE WHEN program_name = 'Back Office'
-        THEN 'Back Office'
-        ELSE 'Front Office'
-        END as back_office,
+      -- Add a flag for back office transactions    
+      CASE WHEN program_name ='BackOffice' OR channel = 'back-office'
+              THEN 'Back Office'
+              ELSE 'Front Office'
+              END as back_office,
       CASE WHEN missing_calls_flag_visit = TRUE OR service_creation_flag_visit = TRUE THEN NULL
         ELSE SUM(service_creation_duration) OVER (PARTITION BY item_list.client_id, item_list.namespace)
       END AS service_creation_duration_total,
