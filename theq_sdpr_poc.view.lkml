@@ -24,7 +24,7 @@ view: theq_sdpr_poc {
         CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE hold_duration_zscore END AS hold_duration_zscore,
         CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE serve_duration_zscore END AS serve_duration_zscore,
 
-        office_name, office_size, area_number, isweekend, isholiday, sbcquarter, lastdayofpsapayperiod, hourly_bucket, half_hour_bucket, date_time_of_day
+        office_name, office_size, area_number, current_area, isweekend, isholiday, sbcquarter, lastdayofpsapayperiod, hourly_bucket, half_hour_bucket, date_time_of_day
         FROM derived.theq_sdpr_step1
         LEFT JOIN servicebc.inaccurate_time_clientids ON theq_sdpr_step1.client_id = inaccurate_time_clientids.client_id
         WHERE theq_sdpr_step1.client_id NOT IN (SELECT * from servicebc.bad_clientids ) ;;
@@ -787,6 +787,11 @@ view: theq_sdpr_poc {
   dimension: area_number {
     type:  number
     sql:  ${TABLE}.area_number ;;
+    group_label: "Office Info"
+  }
+  dimension: current_area {
+    type: string
+    sql:  ${TABLE}.current_area ;;
     group_label: "Office Info"
   }
   dimension: office_type {
