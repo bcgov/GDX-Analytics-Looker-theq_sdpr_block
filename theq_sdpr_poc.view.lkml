@@ -1,34 +1,5 @@
 view: theq_sdpr_poc {
-  derived_table: {
-    sql:
-      SELECT theq_sdpr_step1.client_id, service_count, namespace, welcome_time, latest_time,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE service_creation_duration END AS service_creation_duration,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE waiting_duration END AS waiting_duration,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE prep_duration END AS prep_duration,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE serve_duration END AS serve_duration,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE hold_duration END AS hold_duration,
-        transaction_count, inaccurate_time,
-
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN 'Override' ELSE status END AS status,
-
-        agent_id, office_id, office_type, channel, program_id, program_name, parent_id, transaction_name, channel_sort, back_office,
-
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE service_creation_duration_total END AS service_creation_duration_total,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE waiting_duration_total END AS waiting_duration_total,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE prep_duration_total END AS prep_duration_total,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE hold_duration_total END AS hold_duration_total,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE serve_duration_total END AS serve_duration_total,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE service_creation_duration_zscore END AS service_creation_duration_zscore,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE waiting_duration_zscore END AS waiting_duration_zscore,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE prep_duration_zscore END AS prep_duration_zscore,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE hold_duration_zscore END AS hold_duration_zscore,
-        CASE WHEN inaccurate_time_clientids.client_id IS NOT NULL THEN NULL ELSE serve_duration_zscore END AS serve_duration_zscore,
-
-        office_name, office_size, area_number, current_area, isweekend, isholiday, sbcquarter, lastdayofpsapayperiod, hourly_bucket, half_hour_bucket, date_time_of_day
-        FROM derived.theq_sdpr_step1
-        LEFT JOIN servicebc.inaccurate_time_clientids ON theq_sdpr_step1.client_id = inaccurate_time_clientids.client_id
-        WHERE theq_sdpr_step1.client_id NOT IN (SELECT * from servicebc.bad_clientids ) ;;
-  }
+  sql_table_name: derived.theq_sdpr_step1 ;;
 
 
   dimension: service_creation_flag {
@@ -167,21 +138,21 @@ view: theq_sdpr_poc {
     type:  sum
     sql: (1.00 * ${TABLE}.service_creation_duration)/(60*60*24) ;;
     value_format: "[h]:mm:ss"
-    group_label: "service_creation Duration"
+    group_label: "Service Creation Duration"
   }
   measure: service_creation_duration_per_visit_max {
     description: "Maximum service_creation duration."
     type:  max
     sql: (1.00 * ${TABLE}.service_creation_duration)/(60*60*24) ;;
     value_format: "[h]:mm:ss"
-    group_label: "service_creation Duration"
+    group_label: "Service Creation Duration"
   }
   measure: service_creation_duration_per_visit_average {
     description: "Average service_creation duration."
     type:  average
     sql: (1.00 * ${TABLE}.service_creation_duration)/(60*60*24) ;;
     value_format: "[h]:mm:ss"
-    group_label: "service_creation Duration"
+    group_label: "Service Creation Duration"
   }
   measure: waiting_duration_total {
     description: "Total waiting duration."
@@ -312,7 +283,7 @@ view: theq_sdpr_poc {
 
   # Time based dimentions
   dimension: service_creation_duration_per_visit {
-    description: "service_creation duration for this visit."
+    description: "Service creation duration for this visit."
     type:  number
     sql: (1.00 * ${TABLE}.service_creation_duration)/(60*60*24) ;;
     value_format: "[h]:mm:ss"
@@ -578,10 +549,15 @@ view: theq_sdpr_poc {
     hidden: yes
   }
   dimension: service_creation_duration_outlier {
-    description: "Is the service_creation duration greater than 3 standard deviations from the average?"
+    description: "Is the service creation duration greater than 3 standard deviations from the average?"
     type:  yesno
     sql: abs(${TABLE}.service_creation_duration_zscore) >= 3 ;;
     group_label: "Z-Scores"
+  }
+  dimension: no_wait_visit {
+    description: "Did the visit skip the line?"
+    type: yesno
+    sql: ${TABLE}.no_wait_visit ;;
   }
   dimension: waiting_duration_outlier {
     description: "Is the waiting duration greater than 3 standard deviations from the average?"
@@ -971,6 +947,10 @@ view: theq_sdpr_poc {
     type: string
     sql: ${TABLE}.channel ;;
     order_by_field: channel_sort
+  }
+  dimension: counter_type {
+    type: string
+    sql: ${TABLE}.counter_type ;;
   }
   dimension: inaccurate_time {
     description: "A flag to indicate that the timing on this service is unreliable. It will be included in counts, but not timing averages."
