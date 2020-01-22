@@ -1,3 +1,6 @@
+include: "//cmslite_metadata/views/metadata.view"
+include: "//cmslite_metadata/views/themes.view"
+
 view: cats {
   derived_table: {
     sql: SELECT govdate,
@@ -7,7 +10,7 @@ view: cats {
             THEN 'Search'
             ELSE COALESCE (SPLIT_PART(cms.dcterms_creator, '|', 2), SPLIT_PART(cms_guid.dcterms_creator, '|', 2))
             END AS page_owner,
-          themes.theme,themes.subtheme,themes.theme_id,themes.subtheme_id,themes.title,
+          cms_themes.theme,cms_themes.subtheme,cms_themes.theme_id,cms_themes.subtheme_id,cms_themes.title,
           CASE WHEN (SPLIT_PART(SPLIT_PART(get_string, ' ', 2), '?',1) = '/gov/content')
             THEN cms_guid.hr_url
             ELSE SPLIT_PART(SPLIT_PART(get_string, ' ', 2), '?',1)
@@ -29,7 +32,7 @@ view: cats {
           dd.isholiday::BOOLEAN,
           dd.sbcquarter, dd.lastdayofpsapayperiod::date,
           to_char(govdate, 'HH24:00-HH24:59') AS hourly_bucket,
-          CASE WHEN date_part(minute, govdate) < 30
+          CASE WHEN date_part(minute, govdate::TIMESTAMP) < 30
             THEN to_char(govdate, 'HH24:00-HH24:29')
             ELSE to_char(govdate, 'HH24:30-HH24:59')
           END AS half_hour_bucket,
@@ -38,16 +41,16 @@ view: cats {
           office_info.area AS area_number,
           office_info.id AS office_id
           FROM servicebc.cats_gdx AS gdx
-          LEFT JOIN servicebc.cats_sbc AS sbc ON gdx.port = sbc.source_translated_port AND abs(DATEDIFF('minute', gdx.govdate, sbc.firewall_time)) < 30
+          LEFT JOIN servicebc.cats_sbc AS sbc ON gdx.port = sbc.source_translated_port AND abs(DATEDIFF('minute', gdx.govdate::TIMESTAMP, sbc.firewall_time)) < 30
           -- Use sbc.office where it exists. If it is NULL, the try looking up the site based on the asset tag
           --LEFT JOIN servicebc.cats_info ON servicebc.cats_info.asset_tag = sbc.source_host_name AND sbc.source_host_name <> ''
-          LEFT JOIN servicebc.sdpr_office_info ON servicebc.sdpr_office_info.site = sbc.office AND end_date IS NULL -- for now, get the most recent office info
+          LEFT JOIN servicebc.office_info ON servicebc.office_info.site = sbc.office AND end_date IS NULL -- for now, get the most recent office info
           JOIN servicebc.datedimension AS dd on govdate::date = dd.datekey::date
-          LEFT JOIN cmslite.metadata AS cms ON cms.hr_url = 'https://www2.gov.bc.ca' || SPLIT_PART(SPLIT_PART(get_string, ' ', 2), '?',1)
-          LEFT JOIN cmslite.metadata AS cms_guid ON
+          LEFT JOIN ${metadata.SQL_TABLE_NAME} AS cms ON cms.hr_url = 'https://www2.gov.bc.ca' || SPLIT_PART(SPLIT_PART(get_string, ' ', 2), '?',1)
+          LEFT JOIN ${metadata.SQL_TABLE_NAME} AS cms_guid ON
               SPLIT_PART(SPLIT_PART(get_string, ' ', 2), '?',1)  =  '/gov/content'
               AND cms_guid.node_id = SPLIT_PART(SPLIT_PART(SPLIT_PART(get_string, ' ', 2), '?',2), 'id=', 2)
-          LEFT JOIN cmslite.themes ON cmslite.themes.node_id = COALESCE(cms.node_id,SPLIT_PART(SPLIT_PART(SPLIT_PART(get_string, ' ', 2), '?',2), 'id=', 2));;
+          LEFT JOIN ${themes.SQL_TABLE_NAME} AS cms_themes ON cms_themes.node_id = COALESCE(cms.node_id,SPLIT_PART(SPLIT_PART(SPLIT_PART(get_string, ' ', 2), '?',2), 'id=', 2));;
     # https://docs.looker.com/data-modeling/learning-lookml/caching
     # This should cause the table to rebuild every day at 7am. May need to confirm timezones.
       sql_trigger_value: SELECT FLOOR((EXTRACT(epoch from GETDATE()) - 60*60*7)/(60*60*24)) ;;
