@@ -152,10 +152,10 @@ view: cats {
       sql: ${TABLE}.flex_string;;
     }
 
-    dimension: asset_tag {
-      type: string
-      sql: ${TABLE}.asset_tag;;
-    }
+    #dimension: asset_tag {
+    #  type: string
+    #  sql: ${TABLE}.asset_tag;;
+    #}
     #dimension: source_mac_address {
     #  type: string
     #  sql: ${TABLE}.source_mac_address;;
