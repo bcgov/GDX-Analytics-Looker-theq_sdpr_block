@@ -1,6 +1,6 @@
 view: cats {
   derived_table: {
-    sql: SELECT govdate,
+    sql: SELECT govdate::timestamp,
           COALESCE(cms.node_id,SPLIT_PART(SPLIT_PART(SPLIT_PART(get_string, ' ', 2), '?',2), 'id=', 2)) AS node_id,
           get_string,
           CASE WHEN (SPLIT_PART(SPLIT_PART(get_string, ' ', 2), '?',1) = '/gov/search')
@@ -28,17 +28,17 @@ view: cats {
           dd.isweekend::BOOLEAN,
           dd.isholiday::BOOLEAN,
           dd.sbcquarter, dd.lastdayofpsapayperiod::date,
-          to_char(govdate, 'HH24:00-HH24:59') AS hourly_bucket,
-          CASE WHEN date_part(minute, govdate) < 30
-            THEN to_char(govdate, 'HH24:00-HH24:29')
-            ELSE to_char(govdate, 'HH24:30-HH24:59')
+          to_char(govdate::timestamp, 'HH24:00-HH24:59') AS hourly_bucket,
+          CASE WHEN date_part(minute, govdate::timestamp) < 30
+            THEN to_char(govdate::timestamp, 'HH24:00-HH24:29')
+            ELSE to_char(govdate::timestamp, 'HH24:30-HH24:59')
           END AS half_hour_bucket,
-          to_char(govdate, 'HH24:MI:SS') AS date_time_of_day,
-          office_info.officesize AS office_size,
-          office_info.area AS area_number,
-          office_info.id AS office_id
+          to_char(govdate::timestamp, 'HH24:MI:SS') AS date_time_of_day,
+          sdpr_office_info.officesize AS office_size,
+          sdpr_office_info.area AS area_number,
+          sdpr_office_info.id AS office_id
           FROM servicebc.cats_gdx AS gdx
-          LEFT JOIN servicebc.cats_sbc AS sbc ON gdx.port = sbc.source_translated_port AND abs(DATEDIFF('minute', gdx.govdate, sbc.firewall_time)) < 30
+          LEFT JOIN servicebc.cats_sbc AS sbc ON gdx.port = sbc.source_translated_port AND abs(DATEDIFF('minute', gdx.govdate::timestamp, sbc.firewall_time)) < 30
           -- Use sbc.office where it exists. If it is NULL, the try looking up the site based on the asset tag
           --LEFT JOIN servicebc.cats_info ON servicebc.cats_info.asset_tag = sbc.source_host_name AND sbc.source_host_name <> ''
           LEFT JOIN servicebc.sdpr_office_info ON servicebc.sdpr_office_info.site = sbc.office AND end_date IS NULL -- for now, get the most recent office info
