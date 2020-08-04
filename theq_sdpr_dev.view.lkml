@@ -302,7 +302,7 @@ view: theq_sdpr_dev {
       office_info.site AS office_name,
       office_info.officesize AS office_size,
       office_info.area AS area_number,
-      office_info.current_area AS current_area,
+      NULL AS current_area, -- for now, set to NULL as it isn't in this table
       ----------------------
       dd.isweekend::BOOLEAN,
       dd.isholiday::BOOLEAN,
@@ -319,7 +319,7 @@ view: theq_sdpr_dev {
       LEFT JOIN agent_info ON agent_info.client_id = item_list.client_id AND agent_info.service_count = item_list.service_count AND agent_info.namespace = item_list.namespace
       LEFT JOIN finish_info ON finish_info.client_id = item_list.client_id AND finish_info.service_count = item_list.service_count AND finish_info.namespace = item_list.namespace
       LEFT JOIN flags ON flags.client_id = item_list.client_id AND flags.namespace = item_list.namespace
-      LEFT JOIN servicebc.sdpr_office_info ON servicebc.sdpr_office_info.rmsofficecode = office_id AND end_date IS NULL -- for now, get the most recent office info
+      LEFT JOIN servicebc.sdpr_office_info AS office_info ON office_info.rmsofficecode = office_id AND end_date IS NULL -- for now, get the most recent office info
       JOIN servicebc.datedimension AS dd on item_list.welcome_time::date = dd.datekey::date
       GROUP BY item_list.namespace,
       item_list.client_id,

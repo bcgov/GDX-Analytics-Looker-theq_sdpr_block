@@ -24,9 +24,9 @@ explore: theq_sdpr_poc_no_filter {
 
 }
 
-explore: theq_sdpr_dev {
-  persist_for: "5 minutes"
-}
+#explore: theq_sdpr_dev {
+#  persist_for: "5 minutes"
+#}
 
 explore: cats {}
 
