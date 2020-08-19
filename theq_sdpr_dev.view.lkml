@@ -41,6 +41,7 @@ view: theq_sdpr_dev {
 
   WHERE ev.name_tracker IN ('TheQ_SDPR_dev')
     AND client_id IS NOT NULL
+    AND event_name NOT IN ('appointment_checkin','appointment_create','appointment_update')
   ),
   service_info_pre AS (
     SELECT
