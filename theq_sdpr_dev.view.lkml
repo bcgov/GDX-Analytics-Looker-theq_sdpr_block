@@ -361,8 +361,8 @@ view: theq_sdpr_dev {
       dd.sbcquarter, dd.lastdayofpsapayperiod::date
   ;;
           # https://docs.looker.com/data-modeling/learning-lookml/caching
-    distribution_style: all
-    sql_trigger_value: SELECT COUNT(*) FROM derived.theq_sdpr_step1 ;;
+   # distribution_style: all
+  #  sql_trigger_value: SELECT COUNT(*) FROM derived.theq_sdpr_step1 ;;
 }
 
 
