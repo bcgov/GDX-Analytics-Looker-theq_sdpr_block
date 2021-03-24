@@ -14,7 +14,7 @@ include: "//cmslite_metadata/Explores/themes_cache.explore.lkml"
 
 datagroup: theq_sdpr_datagroup {
   description: "Datagroup for TheQ SDRP caching"
-  max_cache_age: "24 hours"
+  max_cache_age: "1 hour"
   sql_trigger: SELECT MAX(latest_time) FROM derived.theq_sdpr_step1 ;;
 }
 
