@@ -11,6 +11,13 @@ include: "*.view"
 # include themes_cache
 include: "//cmslite_metadata/Explores/themes_cache.explore.lkml"
 
+
+datagroup: theq_sdpr_datagroup {
+  description: "Datagroup for TheQ SDRP caching"
+  max_cache_age: "24 hours"
+  sql_trigger: SELECT MAX(latest_time) FROM derived.theq_sdpr_step1 ;;
+}
+
 # For now, don't include the dashboard we built. There is an editable version in the Shared -> Service BC Folder
 # include: "*.dashboard"
 
@@ -19,12 +26,11 @@ explore: theq_sdpr_poc {
     field: office_filter # use the version of office names that have "_" instead of " "
     user_attribute: office_name
   }
-  persist_for: "5 minutes"
+  persist_with: theq_sdpr_datagroup
 }
 explore: theq_sdpr_poc_no_filter {
   from: theq_sdpr_poc
-  persist_for: "5 minutes"
-
+  persist_with: theq_sdpr_datagroup
 }
 
 #explore: theq_sdpr_dev {
