@@ -9,7 +9,7 @@ view: theq_sdpr_poc {
   dimension_group: filter_start {
     sql: ${TABLE}.welcome_time ;;
   }
-  dimension: summary_granularity { hidden: yes }
+  parameter: summary_granularity { hidden: yes }
   dimension: summary_date { hidden: yes }
   dimension: in_summary_period { hidden: yes }
 
