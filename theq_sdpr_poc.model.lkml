@@ -6,7 +6,7 @@ week_start_day: sunday
 fiscal_month_offset: 3
 
 # include all views in this project
-include: "*.view"
+include: "/Views/*.view"
 
 # include themes_cache
 include: "//cmslite_metadata/Explores/themes_cache.explore.lkml"
