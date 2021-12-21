@@ -1,39 +1,16 @@
 view: theq_sdpr_dev {
   derived_table: {
-    sql:
-WITH agent AS (
-        SELECT schema_vendor, schema_name, schema_format, schema_version, root_id, root_tstamp, ref_root, ref_tree, ref_parent, agent_id,
-               CASE WHEN (quick_txn) THEN 'Quick Transaction' END AS counter_type, role, NULL AS idir
-         FROM atomic.ca_bc_gov_cfmspoc_agent_2 AS a2
-      UNION
-        SELECT schema_vendor, schema_name, schema_format, schema_version, root_id, root_tstamp, ref_root, ref_tree, ref_parent, agent_id,
-              counter_type, role, NULL AS idir
-         FROM atomic.ca_bc_gov_cfmspoc_agent_3 AS a3
-      UNION
-        SELECT schema_vendor, schema_name, schema_format, schema_version, root_id, root_tstamp, ref_root, ref_tree, ref_parent, agent_id,
-              counter_type, role, idir
-         FROM atomic.ca_bc_gov_cfmspoc_agent_4 AS a4
-  ),
-  citizen AS (
-        SELECT schema_vendor, schema_name, schema_format, schema_version, root_id, root_tstamp, ref_root, ref_tree, ref_parent, client_id,
-      CASE WHEN (quick_txn) THEN 'Quick Transaction' END AS counter_type, service_count
-        FROM atomic.ca_bc_gov_cfmspoc_citizen_3 AS c3
-     UNION
-        SELECT schema_vendor, schema_name, schema_format, schema_version, root_id, root_tstamp, ref_root, ref_tree, ref_parent, client_id, counter_type, service_count
-        FROM atomic.ca_bc_gov_cfmspoc_citizen_4 AS c4
-  ),
-  pre AS (
+    sql: WITH pre AS (
   SELECT
     ev.name_tracker AS namespace,
     ev.event_name,
     CONVERT_TIMEZONE('UTC', 'America/Vancouver', ev.dvce_created_tstamp) AS event_time,
-    DATEDIFF(milliseconds, '1970-01-01 00:00:00',event_time)/1000.0 AS event_time_number,
+    DATEDIFF(milliseconds, event_time, '1970-01-01 00:00:00')/1000.0 AS event_time_number,
     client_id,
     service_count,
     office_id,
     office_type,
     agent_id,
-    idir,
     channel,
     program_id,
     parent_id,
@@ -44,9 +21,9 @@ WITH agent AS (
     leave_status -- from customerleft-2.0.0
 
   FROM atomic.events AS ev
-  LEFT JOIN agent AS a
+  LEFT JOIN atomic.ca_bc_gov_cfmspoc_agent_2 AS a
       ON ev.event_id = a.root_id AND ev.collector_tstamp = a.root_tstamp
-  LEFT JOIN citizen AS c
+  LEFT JOIN atomic.ca_bc_gov_cfmspoc_citizen_3 AS c
       ON ev.event_id = c.root_id AND ev.collector_tstamp = c.root_tstamp
   LEFT JOIN atomic.ca_bc_gov_cfmspoc_office_1 AS o
       ON ev.event_id = o.root_id AND ev.collector_tstamp = o.root_tstamp
@@ -60,12 +37,11 @@ WITH agent AS (
       ON ev.event_id = ho.root_id AND ev.collector_tstamp = ho.root_tstamp
   LEFT JOIN atomic.ca_bc_gov_cfmspoc_customerleft_2 AS cl
       ON ev.event_id = cl .root_id AND ev.collector_tstamp = cl.root_tstamp
-  LEFT JOIN servicebc.service_info AS si ON si.svccode = cs.program_id
+  LEFT JOIN servicebc.sdpr_service_info AS si ON si.svccode = cs.program_id
 
-  WHERE ev.name_tracker IN ('TheQ_SDPR_dev','TheQ_SDPR_prod','TheQ_SDPR_test')
+  WHERE ev.name_tracker IN ('TheQ_SDPR_dev')
     AND client_id IS NOT NULL
     AND event_name NOT IN ('appointment_checkin','appointment_create','appointment_update')
-    AND  ev.dvce_created_tstamp > DATEADD(day,-30, DATE_TRUNC('day',GETDATE()) )
   ),
   service_info_pre AS (
     SELECT
@@ -98,7 +74,6 @@ WITH agent AS (
     office_type,
     service_count,
     agent_id,
-    idir,
     ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace) AS agent_info_ranked
     FROM pre
     WHERE event_name <> 'customerleft'
@@ -185,7 +160,6 @@ WITH agent AS (
     CASE WHEN (hold_in = hold_out AND hold_in > 0) THEN hold_duration ELSE NULL END AS hold_duration,
     --- Set flags for states
     CASE WHEN service_creation_in = service_creation_out + 1 THEN TRUE END AS service_creation_flag,
-    CASE WHEN waiting_in = 0 THEN TRUE END AS no_wait_flag,
     CASE WHEN waiting_in = waiting_out + 1 THEN TRUE END AS waiting_flag,
     CASE WHEN prep_in = prep_out + 1 THEN TRUE END AS prep_flag,
     CASE WHEN serve_in = serve_out + 1 THEN TRUE END AS serve_flag,
@@ -220,8 +194,7 @@ WITH agent AS (
     BOOL_OR(serve_flag) AS serve_flag_visit,
     BOOL_OR(hold_flag) AS hold_flag_visit,
     BOOL_OR(inaccurate_time) AS inaccurate_time_visit,
-    BOOL_OR(missing_calls_flag) AS missing_calls_flag_visit,
-    BOOL_AND(no_wait_flag) AND (NOT BOOL_OR(inaccurate_time) OR BOOL_OR(inaccurate_time) IS NULL) AS no_wait_visit
+    BOOL_OR(missing_calls_flag) AS missing_calls_flag_visit
     FROM item_list
     GROUP BY client_id, namespace
   )
@@ -241,13 +214,11 @@ WITH agent AS (
 
       transaction_count,
       item_list.inaccurate_time,
-      no_wait_visit,
       CASE
         WHEN (status = 'complete') THEN finish_type
         ELSE status
       END AS status,
       agent_info.agent_id,
-      idir,
       office_id,
       office_type,
       channel,
@@ -264,7 +235,7 @@ WITH agent AS (
         END AS channel_sort,
       -----------------------------------
       -- Add a flag for back office transactions
-      CASE WHEN program_name = 'Back Office' OR channel = 'back-office'
+      CASE WHEN program_name = 'Back Office'
         THEN 'Back Office'
         ELSE 'Front Office'
         END as back_office,
@@ -332,7 +303,7 @@ WITH agent AS (
       office_info.site AS office_name,
       office_info.officesize AS office_size,
       office_info.area AS area_number,
-      office_info.current_area AS current_area,
+      NULL AS current_area, -- for now, set to NULL as it isn't in this table
       ----------------------
       dd.isweekend::BOOLEAN,
       dd.isholiday::BOOLEAN,
@@ -349,7 +320,7 @@ WITH agent AS (
       LEFT JOIN agent_info ON agent_info.client_id = item_list.client_id AND agent_info.service_count = item_list.service_count AND agent_info.namespace = item_list.namespace
       LEFT JOIN finish_info ON finish_info.client_id = item_list.client_id AND finish_info.service_count = item_list.service_count AND finish_info.namespace = item_list.namespace
       LEFT JOIN flags ON flags.client_id = item_list.client_id AND flags.namespace = item_list.namespace
-      LEFT JOIN servicebc.office_info ON servicebc.office_info.rmsofficecode = office_id AND end_date IS NULL -- for now, get the most recent office info
+      LEFT JOIN servicebc.sdpr_office_info AS office_info ON office_info.rmsofficecode = office_id AND end_date IS NULL -- for now, get the most recent office info
       JOIN servicebc.datedimension AS dd on item_list.welcome_time::date = dd.datekey::date
       GROUP BY item_list.namespace,
       item_list.client_id,
@@ -362,7 +333,6 @@ WITH agent AS (
       status,
       finish_type,
       agent_info.agent_id,
-      idir,
       item_list.service_creation_duration,
       item_list.serve_duration,
       item_list.waiting_duration,
@@ -375,7 +345,6 @@ WITH agent AS (
       hold_flag_visit,
       inaccurate_time_visit,
       missing_calls_flag_visit,
-      no_wait_visit,
       status,
       office_name,
       office_size,
@@ -389,7 +358,9 @@ WITH agent AS (
       channel,
       dd.isweekend,
       dd.isholiday,
-      dd.sbcquarter, dd.lastdayofpsapayperiod::date          # https://docs.looker.com/data-modeling/learning-lookml/caching
+      dd.sbcquarter, dd.lastdayofpsapayperiod::date
+  ;;
+          # https://docs.looker.com/data-modeling/learning-lookml/caching
    # distribution_style: all
   #  sql_trigger_value: SELECT COUNT(*) FROM derived.theq_sdpr_step1 ;;
 }
