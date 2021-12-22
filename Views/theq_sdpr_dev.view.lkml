@@ -1,369 +1,398 @@
 view: theq_sdpr_dev {
   derived_table: {
-    sql: WITH pre AS (
-  SELECT
-    ev.name_tracker AS namespace,
-    ev.event_name,
-    CONVERT_TIMEZONE('UTC', 'America/Vancouver', ev.dvce_created_tstamp) AS event_time,
-    DATEDIFF(milliseconds, event_time, '1970-01-01 00:00:00')/1000.0 AS event_time_number,
-    client_id,
-    service_count,
-    office_id,
-    office_type,
-    agent_id,
-    channel,
-    program_id,
-    parent_id,
-    COALESCE(si.program, cs.program_name) AS program_name,
-    COALESCE(si.service,cs.transaction_name) AS transaction_name,
-    COALESCE(fi.quantity,fs.quantity) AS transaction_count, -- from finish-2.0.0 or finishstopped-1.0.0
-    inaccurate_time, -- from finish-2.0.0
-    leave_status -- from customerleft-2.0.0
+    sql:
+    WITH agent AS (
+            SELECT schema_vendor, schema_name, schema_format, schema_version, root_id, root_tstamp, ref_root, ref_tree, ref_parent, agent_id,
+                   CASE WHEN (quick_txn) THEN 'Quick Transaction' END AS counter_type, role, NULL AS idir
+             FROM atomic.ca_bc_gov_cfmspoc_agent_2 AS a2
+          UNION
+            SELECT schema_vendor, schema_name, schema_format, schema_version, root_id, root_tstamp, ref_root, ref_tree, ref_parent, agent_id,
+                  counter_type, role, NULL AS idir
+             FROM atomic.ca_bc_gov_cfmspoc_agent_3 AS a3
+          UNION
+            SELECT schema_vendor, schema_name, schema_format, schema_version, root_id, root_tstamp, ref_root, ref_tree, ref_parent, agent_id,
+                  counter_type, role, idir
+             FROM atomic.ca_bc_gov_cfmspoc_agent_4 AS a4
+      ),
+      citizen AS (
+            SELECT schema_vendor, schema_name, schema_format, schema_version, root_id, root_tstamp, ref_root, ref_tree, ref_parent, client_id,
+          CASE WHEN (quick_txn) THEN 'Quick Transaction' END AS counter_type, service_count
+            FROM atomic.ca_bc_gov_cfmspoc_citizen_3 AS c3
+         UNION
+            SELECT schema_vendor, schema_name, schema_format, schema_version, root_id, root_tstamp, ref_root, ref_tree, ref_parent, client_id, counter_type, service_count
+            FROM atomic.ca_bc_gov_cfmspoc_citizen_4 AS c4
+      ),
+      pre AS (
+      SELECT
+        ev.name_tracker AS namespace,
+        ev.event_name,
+        CONVERT_TIMEZONE('UTC', 'America/Vancouver', ev.dvce_created_tstamp) AS event_time,
+        DATEDIFF(milliseconds, '1970-01-01 00:00:00',event_time)/1000.0 AS event_time_number,
+        client_id,
+        service_count,
+        office_id,
+        office_type,
+        agent_id,
+        idir,
+        channel,
+        program_id,
+        parent_id,
+        COALESCE(si.program, cs.program_name) AS program_name,
+        COALESCE(si.service,cs.transaction_name) AS transaction_name,
+        COALESCE(fi.quantity,fs.quantity) AS transaction_count, -- from finish-2.0.0 or finishstopped-1.0.0
+        inaccurate_time, -- from finish-2.0.0
+        leave_status -- from customerleft-2.0.0
 
-  FROM atomic.events AS ev
-  LEFT JOIN atomic.ca_bc_gov_cfmspoc_agent_2 AS a
-      ON ev.event_id = a.root_id AND ev.collector_tstamp = a.root_tstamp
-  LEFT JOIN atomic.ca_bc_gov_cfmspoc_citizen_3 AS c
-      ON ev.event_id = c.root_id AND ev.collector_tstamp = c.root_tstamp
-  LEFT JOIN atomic.ca_bc_gov_cfmspoc_office_1 AS o
-      ON ev.event_id = o.root_id AND ev.collector_tstamp = o.root_tstamp
-  LEFT JOIN atomic.ca_bc_gov_cfmspoc_chooseservice_3 AS cs
-      ON ev.event_id = cs.root_id AND ev.collector_tstamp = cs.root_tstamp
-  LEFT JOIN atomic.ca_bc_gov_cfmspoc_finish_2 AS fi
-      ON ev.event_id = fi.root_id AND ev.collector_tstamp = fi.root_tstamp
-  LEFT JOIN atomic.ca_bc_gov_cfmspoc_finishstopped_1 AS fs
-      ON ev.event_id = fs.root_id AND ev.collector_tstamp = fs.root_tstamp
-  LEFT JOIN atomic.ca_bc_gov_cfmspoc_hold_1 AS ho
-      ON ev.event_id = ho.root_id AND ev.collector_tstamp = ho.root_tstamp
-  LEFT JOIN atomic.ca_bc_gov_cfmspoc_customerleft_2 AS cl
-      ON ev.event_id = cl .root_id AND ev.collector_tstamp = cl.root_tstamp
-  LEFT JOIN servicebc.sdpr_service_info AS si ON si.svccode = cs.program_id
+      FROM atomic.events AS ev
+      LEFT JOIN agent AS a
+          ON ev.event_id = a.root_id AND ev.collector_tstamp = a.root_tstamp
+      LEFT JOIN citizen AS c
+          ON ev.event_id = c.root_id AND ev.collector_tstamp = c.root_tstamp
+      LEFT JOIN atomic.ca_bc_gov_cfmspoc_office_1 AS o
+          ON ev.event_id = o.root_id AND ev.collector_tstamp = o.root_tstamp
+      LEFT JOIN atomic.ca_bc_gov_cfmspoc_chooseservice_3 AS cs
+          ON ev.event_id = cs.root_id AND ev.collector_tstamp = cs.root_tstamp
+      LEFT JOIN atomic.ca_bc_gov_cfmspoc_finish_2 AS fi
+          ON ev.event_id = fi.root_id AND ev.collector_tstamp = fi.root_tstamp
+      LEFT JOIN atomic.ca_bc_gov_cfmspoc_finishstopped_1 AS fs
+          ON ev.event_id = fs.root_id AND ev.collector_tstamp = fs.root_tstamp
+      LEFT JOIN atomic.ca_bc_gov_cfmspoc_hold_1 AS ho
+          ON ev.event_id = ho.root_id AND ev.collector_tstamp = ho.root_tstamp
+      LEFT JOIN atomic.ca_bc_gov_cfmspoc_customerleft_2 AS cl
+          ON ev.event_id = cl .root_id AND ev.collector_tstamp = cl.root_tstamp
+      LEFT JOIN servicebc.service_info AS si ON si.svccode = cs.program_id
 
-  WHERE ev.name_tracker IN ('TheQ_SDPR_dev')
-    AND client_id IS NOT NULL
-    AND event_name NOT IN ('appointment_checkin','appointment_create','appointment_update')
-  ),
-  service_info_pre AS (
-    SELECT
-    namespace,
-    event_time,
-    client_id,
-    service_count,
-    channel,
-    program_id,
-    parent_id,
-    program_name,
-    transaction_name,
-    ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace) AS service_info_ranked
-    FROM pre
-    WHERE event_name = 'chooseservice'
-    ORDER BY event_time DESC
-  ),
-  service_info AS ( -- we get our service choices by taking the final choices made by chooseservice for a given client_id and service_count
-   SELECT
-      service_info_pre.*
-    FROM service_info_pre
-    WHERE service_info_ranked = 1
-  ),
-  agent_info_pre AS ( -- we set the Agent ID to be the LAST agent who worked on the case other than setting a "Customer Left" event
-    SELECT
-    namespace,
-    event_time,
-    client_id,
-    office_id,
-    office_type,
-    service_count,
-    agent_id,
-    ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace) AS agent_info_ranked
-    FROM pre
-    WHERE event_name <> 'customerleft'
-    ORDER BY event_time DESC
-  ),
-  agent_info AS ( -- we get our service choices by taking the final choices made by chooseservice for a given client_id and service_count
-    SELECT
-    agent_info_pre.*
-    FROM agent_info_pre
-    WHERE agent_info_ranked = 1
-  ),
-  finish_info_pre AS (
-    SELECT
-    namespace,
-    client_id,
-    service_count,
-    transaction_count,
-    inaccurate_time,
-    CASE
-      WHEN (inaccurate_time) THEN 'Inaccurate Time'
-      WHEN (event_name IN ('finish','finishstopped')) THEN 'Finished'
-      ELSE 'Customer Left (' || leave_status || ')' END AS finish_type,
-    ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace) AS finish_info_ranked
-    FROM pre
-    WHERE event_name IN ('finish','finishstopped','customerleft')
-    GROUP BY namespace, client_id, service_count,finish_type,transaction_count,inaccurate_time
-  ),
-  finish_info AS ( -- we get our service choices by taking the final choices made by chooseservice for a given client_id and service_count
-    SELECT
-    finish_info_pre.*
-    FROM finish_info_pre
-    WHERE finish_info_ranked = 1
-  ),
+      WHERE ev.name_tracker IN ('TheQ_SDPR_dev','TheQ_SDPR_prod','TheQ_SDPR_test')
+        AND client_id IS NOT NULL
+        AND event_name NOT IN ('appointment_checkin','appointment_create','appointment_update')
+        AND  ev.dvce_created_tstamp > DATEADD(day,-30, DATE_TRUNC('day',GETDATE()) )
+      ),
+      service_info_pre AS (
+        SELECT
+        namespace,
+        event_time,
+        client_id,
+        service_count,
+        channel,
+        program_id,
+        parent_id,
+        program_name,
+        transaction_name,
+        ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace) AS service_info_ranked
+        FROM pre
+        WHERE event_name = 'chooseservice'
+        ORDER BY event_time DESC
+      ),
+      service_info AS ( -- we get our service choices by taking the final choices made by chooseservice for a given client_id and service_count
+       SELECT
+          service_info_pre.*
+        FROM service_info_pre
+        WHERE service_info_ranked = 1
+      ),
+      agent_info_pre AS ( -- we set the Agent ID to be the LAST agent who worked on the case other than setting a "Customer Left" event
+        SELECT
+        namespace,
+        event_time,
+        client_id,
+        office_id,
+        office_type,
+        service_count,
+        agent_id,
+        idir,
+        ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace) AS agent_info_ranked
+        FROM pre
+        WHERE event_name <> 'customerleft'
+        ORDER BY event_time DESC
+      ),
+      agent_info AS ( -- we get our service choices by taking the final choices made by chooseservice for a given client_id and service_count
+        SELECT
+        agent_info_pre.*
+        FROM agent_info_pre
+        WHERE agent_info_ranked = 1
+      ),
+      finish_info_pre AS (
+        SELECT
+        namespace,
+        client_id,
+        service_count,
+        transaction_count,
+        inaccurate_time,
+        CASE
+          WHEN (inaccurate_time) THEN 'Inaccurate Time'
+          WHEN (event_name IN ('finish','finishstopped')) THEN 'Finished'
+          ELSE 'Customer Left (' || leave_status || ')' END AS finish_type,
+        ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace) AS finish_info_ranked
+        FROM pre
+        WHERE event_name IN ('finish','finishstopped','customerleft')
+        GROUP BY namespace, client_id, service_count,finish_type,transaction_count,inaccurate_time
+      ),
+      finish_info AS ( -- we get our service choices by taking the final choices made by chooseservice for a given client_id and service_count
+        SELECT
+        finish_info_pre.*
+        FROM finish_info_pre
+        WHERE finish_info_ranked = 1
+      ),
 
-  base_calculations AS (
-    SELECT
-    client_id,
-    service_count,
-    namespace,
-    min(event_time) AS welcome_time,
-    max(event_time) AS latest_time,
-    SUM( CASE WHEN (event_name IN ('addtoqueue', 'servecitizen') OR ( event_name = 'customerleft' AND leave_status = 'service-creation')) THEN event_time_number ELSE 0 END)
-      - SUM( CASE WHEN (event_name IN ('addcitizen')) THEN event_time_number ELSE 0 END) AS service_creation_duration,
-    SUM( CASE WHEN (event_name IN ('addtoqueue', 'servecitizen') OR ( event_name = 'customerleft' AND leave_status = 'service-creation')) THEN 1 ELSE 0 END) AS service_creation_out,
-    SUM( CASE WHEN (event_name IN ('addcitizen')) THEN 1 ELSE 0 END) AS service_creation_in,
+      base_calculations AS (
+        SELECT
+        client_id,
+        service_count,
+        namespace,
+        min(event_time) AS welcome_time,
+        max(event_time) AS latest_time,
+        SUM( CASE WHEN (event_name IN ('addtoqueue', 'servecitizen') OR ( event_name = 'customerleft' AND leave_status = 'service-creation')) THEN event_time_number ELSE 0 END)
+          - SUM( CASE WHEN (event_name IN ('addcitizen')) THEN event_time_number ELSE 0 END) AS service_creation_duration,
+        SUM( CASE WHEN (event_name IN ('addtoqueue', 'servecitizen') OR ( event_name = 'customerleft' AND leave_status = 'service-creation')) THEN 1 ELSE 0 END) AS service_creation_out,
+        SUM( CASE WHEN (event_name IN ('addcitizen')) THEN 1 ELSE 0 END) AS service_creation_in,
 
-    SUM( CASE WHEN (event_name IN ('invitecitizen', 'invitefromlist', 'returninvite', 'returnfromlist') ) THEN event_time_number ELSE 0 END)
-      - SUM( CASE WHEN (event_name IN ('addtoqueue', 'returntoqueue', 'queuefromprep')) THEN event_time_number ELSE 0 END) AS waiting_duration,
-    SUM( CASE WHEN (event_name IN ('invitecitizen', 'invitefromlist', 'returninvite', 'returnfromlist') ) THEN 1 ELSE 0 END) AS waiting_out,
-    SUM( CASE WHEN (event_name IN ('addtoqueue', 'returntoqueue', 'queuefromprep')) THEN 1 ELSE 0 END) AS waiting_in,
+        SUM( CASE WHEN (event_name IN ('invitecitizen', 'invitefromlist', 'returninvite', 'returnfromlist') ) THEN event_time_number ELSE 0 END)
+          - SUM( CASE WHEN (event_name IN ('addtoqueue', 'returntoqueue', 'queuefromprep')) THEN event_time_number ELSE 0 END) AS waiting_duration,
+        SUM( CASE WHEN (event_name IN ('invitecitizen', 'invitefromlist', 'returninvite', 'returnfromlist') ) THEN 1 ELSE 0 END) AS waiting_out,
+        SUM( CASE WHEN (event_name IN ('addtoqueue', 'returntoqueue', 'queuefromprep')) THEN 1 ELSE 0 END) AS waiting_in,
 
-    SUM( CASE WHEN (event_name IN ('beginservice', 'queuefromprep') OR ( event_name = 'customerleft' AND leave_status = 'at-prep') ) THEN event_time_number ELSE 0 END)
-      - SUM( CASE WHEN (event_name IN ('invitecitizen', 'invitefromlist', 'returninvite','returnfromlist') ) THEN event_time_number ELSE 0 END) AS prep_duration,
-    SUM( CASE WHEN (event_name IN ('beginservice', 'queuefromprep') OR ( event_name = 'customerleft' AND leave_status = 'at-prep') ) THEN 1 ELSE 0 END) AS prep_out,
-    SUM( CASE WHEN (event_name IN ('invitecitizen', 'invitefromlist', 'returninvite','returnfromlist') ) THEN 1 ELSE 0 END) AS prep_in,
+        SUM( CASE WHEN (event_name IN ('beginservice', 'queuefromprep') OR ( event_name = 'customerleft' AND leave_status = 'at-prep') ) THEN event_time_number ELSE 0 END)
+          - SUM( CASE WHEN (event_name IN ('invitecitizen', 'invitefromlist', 'returninvite','returnfromlist') ) THEN event_time_number ELSE 0 END) AS prep_duration,
+        SUM( CASE WHEN (event_name IN ('beginservice', 'queuefromprep') OR ( event_name = 'customerleft' AND leave_status = 'at-prep') ) THEN 1 ELSE 0 END) AS prep_out,
+        SUM( CASE WHEN (event_name IN ('invitecitizen', 'invitefromlist', 'returninvite','returnfromlist') ) THEN 1 ELSE 0 END) AS prep_in,
 
-    SUM( CASE WHEN (event_name IN ('returntoqueue', 'hold', 'stopservice', 'finish') OR ( event_name = 'customerleft' AND leave_status = 'being-served') ) THEN event_time_number ELSE 0 END)
-      - SUM( CASE WHEN (event_name IN ('additionalservice', 'beginservice', 'servecitizen', 'invitefromhold', 'restartservice') ) THEN event_time_number ELSE 0 END) AS serve_duration,
-    SUM( CASE WHEN (event_name IN ('returntoqueue', 'hold', 'stopservice', 'finish') OR ( event_name = 'customerleft' AND leave_status = 'being-served') ) THEN 1 ELSE 0 END) AS serve_out,
-    SUM( CASE WHEN (event_name IN ('additionalservice', 'beginservice', 'servecitizen', 'invitefromhold', 'restartservice') ) THEN 1 ELSE 0 END) AS serve_in,
+        SUM( CASE WHEN (event_name IN ('returntoqueue', 'hold', 'stopservice', 'finish') OR ( event_name = 'customerleft' AND leave_status = 'being-served') ) THEN event_time_number ELSE 0 END)
+          - SUM( CASE WHEN (event_name IN ('additionalservice', 'beginservice', 'servecitizen', 'invitefromhold', 'restartservice') ) THEN event_time_number ELSE 0 END) AS serve_duration,
+        SUM( CASE WHEN (event_name IN ('returntoqueue', 'hold', 'stopservice', 'finish') OR ( event_name = 'customerleft' AND leave_status = 'being-served') ) THEN 1 ELSE 0 END) AS serve_out,
+        SUM( CASE WHEN (event_name IN ('additionalservice', 'beginservice', 'servecitizen', 'invitefromhold', 'restartservice') ) THEN 1 ELSE 0 END) AS serve_in,
 
-    SUM( CASE WHEN (event_name IN ('invitefromhold') ) THEN event_time_number ELSE 0 END)
-      - SUM( CASE WHEN (event_name IN ('hold') ) THEN event_time_number ELSE 0 END) AS hold_duration,
-    SUM( CASE WHEN (event_name IN ('invitefromhold') ) THEN 1 ELSE 0 END) AS hold_out,
-    SUM( CASE WHEN (event_name IN ('hold') ) THEN 1 ELSE 0 END) AS hold_in
+        SUM( CASE WHEN (event_name IN ('invitefromhold') ) THEN event_time_number ELSE 0 END)
+          - SUM( CASE WHEN (event_name IN ('hold') ) THEN event_time_number ELSE 0 END) AS hold_duration,
+        SUM( CASE WHEN (event_name IN ('invitefromhold') ) THEN 1 ELSE 0 END) AS hold_out,
+        SUM( CASE WHEN (event_name IN ('hold') ) THEN 1 ELSE 0 END) AS hold_in
 
-    FROM pre
-    GROUP BY
-    client_id,
-    service_count,
-    namespace
-  ),
-  item_list AS (
-    SELECT
-    base_calculations.client_id,
-    base_calculations.service_count,
-    base_calculations.namespace,
-    welcome_time,
-    latest_time,
-    CASE WHEN (service_creation_in = service_creation_out AND service_creation_in > 0) THEN service_creation_duration ELSE NULL END AS service_creation_duration,
-    CASE WHEN (waiting_in = waiting_out AND waiting_in > 0) THEN waiting_duration ELSE NULL END AS waiting_duration,
-    CASE WHEN (prep_in = prep_out AND prep_in > 0) THEN prep_duration ELSE NULL END AS prep_duration,
-    CASE WHEN ((inaccurate_time IS NULL OR inaccurate_time = FALSE) AND serve_in = serve_out AND serve_in > 0) THEN serve_duration ELSE NULL END AS serve_duration,
-    CASE WHEN (hold_in = hold_out AND hold_in > 0) THEN hold_duration ELSE NULL END AS hold_duration,
-    --- Set flags for states
-    CASE WHEN service_creation_in = service_creation_out + 1 THEN TRUE END AS service_creation_flag,
-    CASE WHEN waiting_in = waiting_out + 1 THEN TRUE END AS waiting_flag,
-    CASE WHEN prep_in = prep_out + 1 THEN TRUE END AS prep_flag,
-    CASE WHEN serve_in = serve_out + 1 THEN TRUE END AS serve_flag,
-    CASE WHEN hold_in = hold_out + 1 THEN TRUE END AS hold_flag,
-    CASE WHEN -- to calculate missing flags, we look for cases where the discrepancy is greater than you could see by still being a stage
-      (service_creation_in - service_creation_out) NOT in (0, -1)
-      AND (waiting_in - waiting_out) NOT in (0, -1)
-      AND (prep_in - prep_out) NOT in (0, -1)
-      AND (serve_in - serve_out) NOT in (0, -1)
-      AND (hold_in - hold_out) NOT in (0, -1)
-    THEN TRUE END AS missing_calls_flag,
-    inaccurate_time,
-    CASE
-      WHEN service_creation_in = service_creation_out + 1 THEN 'At Service Creation'
-      WHEN waiting_in = waiting_out + 1 THEN 'Waiting in Line'
-      WHEN prep_in = prep_out + 1 THEN 'At Prep'
-      WHEN serve_in = serve_out + 1 THEN 'Being Served'
-      WHEN hold_in = hold_out + 1 THEN 'On Hold'
-      WHEN (service_creation_in - service_creation_out) + (waiting_in - waiting_out) + (prep_in - prep_out) + (serve_in - serve_out) + (hold_in - hold_out) <> 0 THEN 'missing_calls'
-      ELSE 'complete'
-    END AS status
-    FROM base_calculations
-    LEFT JOIN finish_info ON finish_info.inaccurate_time = TRUE AND finish_info.client_id = base_calculations.client_id AND finish_info.service_count = base_calculations.service_count AND finish_info.namespace = base_calculations.namespace
-  ),
-  flags AS (
-    SELECT
-    client_id,
-    namespace,
-    BOOL_OR(service_creation_flag) AS service_creation_flag_visit,
-    BOOL_OR(waiting_flag) AS waiting_flag_visit,
-    BOOL_OR(prep_flag) AS prep_flag_visit,
-    BOOL_OR(serve_flag) AS serve_flag_visit,
-    BOOL_OR(hold_flag) AS hold_flag_visit,
-    BOOL_OR(inaccurate_time) AS inaccurate_time_visit,
-    BOOL_OR(missing_calls_flag) AS missing_calls_flag_visit
-    FROM item_list
-    GROUP BY client_id, namespace
-  )
+        FROM pre
+        GROUP BY
+        client_id,
+        service_count,
+        namespace
+      ),
+      item_list AS (
+        SELECT
+        base_calculations.client_id,
+        base_calculations.service_count,
+        base_calculations.namespace,
+        welcome_time,
+        latest_time,
+        CASE WHEN (service_creation_in = service_creation_out AND service_creation_in > 0) THEN service_creation_duration ELSE NULL END AS service_creation_duration,
+        CASE WHEN (waiting_in = waiting_out AND waiting_in > 0) THEN waiting_duration ELSE NULL END AS waiting_duration,
+        CASE WHEN (prep_in = prep_out AND prep_in > 0) THEN prep_duration ELSE NULL END AS prep_duration,
+        CASE WHEN ((inaccurate_time IS NULL OR inaccurate_time = FALSE) AND serve_in = serve_out AND serve_in > 0) THEN serve_duration ELSE NULL END AS serve_duration,
+        CASE WHEN (hold_in = hold_out AND hold_in > 0) THEN hold_duration ELSE NULL END AS hold_duration,
+        --- Set flags for states
+        CASE WHEN service_creation_in = service_creation_out + 1 THEN TRUE END AS service_creation_flag,
+        CASE WHEN waiting_in = 0 THEN TRUE END AS no_wait_flag,
+        CASE WHEN waiting_in = waiting_out + 1 THEN TRUE END AS waiting_flag,
+        CASE WHEN prep_in = prep_out + 1 THEN TRUE END AS prep_flag,
+        CASE WHEN serve_in = serve_out + 1 THEN TRUE END AS serve_flag,
+        CASE WHEN hold_in = hold_out + 1 THEN TRUE END AS hold_flag,
+        CASE WHEN -- to calculate missing flags, we look for cases where the discrepancy is greater than you could see by still being a stage
+          (service_creation_in - service_creation_out) NOT in (0, -1)
+          AND (waiting_in - waiting_out) NOT in (0, -1)
+          AND (prep_in - prep_out) NOT in (0, -1)
+          AND (serve_in - serve_out) NOT in (0, -1)
+          AND (hold_in - hold_out) NOT in (0, -1)
+        THEN TRUE END AS missing_calls_flag,
+        inaccurate_time,
+        CASE
+          WHEN service_creation_in = service_creation_out + 1 THEN 'At Service Creation'
+          WHEN waiting_in = waiting_out + 1 THEN 'Waiting in Line'
+          WHEN prep_in = prep_out + 1 THEN 'At Prep'
+          WHEN serve_in = serve_out + 1 THEN 'Being Served'
+          WHEN hold_in = hold_out + 1 THEN 'On Hold'
+          WHEN (service_creation_in - service_creation_out) + (waiting_in - waiting_out) + (prep_in - prep_out) + (serve_in - serve_out) + (hold_in - hold_out) <> 0 THEN 'missing_calls'
+          ELSE 'complete'
+        END AS status
+        FROM base_calculations
+        LEFT JOIN finish_info ON finish_info.inaccurate_time = TRUE AND finish_info.client_id = base_calculations.client_id AND finish_info.service_count = base_calculations.service_count AND finish_info.namespace = base_calculations.namespace
+      ),
+      flags AS (
+        SELECT
+        client_id,
+        namespace,
+        BOOL_OR(service_creation_flag) AS service_creation_flag_visit,
+        BOOL_OR(waiting_flag) AS waiting_flag_visit,
+        BOOL_OR(prep_flag) AS prep_flag_visit,
+        BOOL_OR(serve_flag) AS serve_flag_visit,
+        BOOL_OR(hold_flag) AS hold_flag_visit,
+        BOOL_OR(inaccurate_time) AS inaccurate_time_visit,
+        BOOL_OR(missing_calls_flag) AS missing_calls_flag_visit,
+        BOOL_AND(no_wait_flag) AND (NOT BOOL_OR(inaccurate_time) OR BOOL_OR(inaccurate_time) IS NULL) AS no_wait_visit
+        FROM item_list
+        GROUP BY client_id, namespace
+      )
 
 
-  SELECT item_list.client_id,
-      item_list.service_count,
-      item_list.namespace,
-      item_list.welcome_time,
-      item_list.latest_time,
+      SELECT item_list.client_id,
+          item_list.service_count,
+          item_list.namespace,
+          item_list.welcome_time,
+          item_list.latest_time,
 
-      item_list.service_creation_duration,
-      item_list.waiting_duration,
-      item_list.prep_duration,
-      item_list.serve_duration,
-      item_list.hold_duration,
+          item_list.service_creation_duration,
+          item_list.waiting_duration,
+          item_list.prep_duration,
+          item_list.serve_duration,
+          item_list.hold_duration,
 
-      transaction_count,
-      item_list.inaccurate_time,
-      CASE
-        WHEN (status = 'complete') THEN finish_type
-        ELSE status
-      END AS status,
-      agent_info.agent_id,
-      office_id,
-      office_type,
-      channel,
-      program_id,
-      program_name,
-      parent_id,
-      transaction_name,
+          transaction_count,
+          item_list.inaccurate_time,
+          no_wait_visit,
+          CASE
+            WHEN (status = 'complete') THEN finish_type
+            ELSE status
+          END AS status,
+          agent_info.agent_id,
+          idir,
+          office_id,
+          office_type,
+          channel,
+          program_id,
+          program_name,
+          parent_id,
+          transaction_name,
 
-      -----------------------------------
-      -- A sort field on Channel, so that "in-person" shows first in the sort order
-      CASE WHEN channel = 'in-person'
-         THEN '0-in-person'
-         ELSE channel
-        END AS channel_sort,
-      -----------------------------------
-      -- Add a flag for back office transactions
-      CASE WHEN program_name = 'Back Office'
-        THEN 'Back Office'
-        ELSE 'Front Office'
-        END as back_office,
-      CASE WHEN missing_calls_flag_visit = TRUE OR service_creation_flag_visit = TRUE THEN NULL
-        ELSE SUM(service_creation_duration) OVER (PARTITION BY item_list.client_id, item_list.namespace)
-      END AS service_creation_duration_total,
-      CASE WHEN missing_calls_flag_visit = TRUE OR waiting_flag_visit = TRUE THEN NULL
-        ELSE SUM(waiting_duration) OVER (PARTITION BY item_list.client_id, item_list.namespace)
-      END AS waiting_duration_total,
-      CASE WHEN missing_calls_flag_visit = TRUE OR prep_flag_visit = TRUE THEN NULL
-        ELSE SUM(prep_duration) OVER (PARTITION BY item_list.client_id, item_list.namespace)
-      END AS prep_duration_total,
-      CASE WHEN missing_calls_flag_visit = TRUE OR hold_flag_visit = TRUE THEN NULL
-        ELSE SUM(hold_duration) OVER (PARTITION BY item_list.client_id, item_list.namespace)
-      END AS hold_duration_total,
-      CASE WHEN missing_calls_flag_visit = TRUE OR serve_flag_visit = TRUE OR inaccurate_time_visit = TRUE THEN NULL
-        ELSE SUM(serve_duration) OVER (PARTITION BY item_list.client_id, item_list.namespace)
-      END AS serve_duration_total,
-      -----------------------------------
-      -- Calculating zscores so we can filter out outliers
-      -- To calculate the zscore, we use the formula (value - mean) / std_dev
-      -- The std_dev and mean are to be calculated for all values for a given office
-      --  (and with the code change below) program_id
-      -- This is done using a Redshift Window Statement. For example, see:
-      --     https://docs.aws.amazon.com/redshift/latest/dg/r_WF_AVG.html
-      --
-      -- We use the CASE statement to avoid dividing by zero. We could move this logic to the LookML below as well
-      ---
-      -- This example shows how to set it for both office_id and program_id.
-      -- For now we just use office_id as we don't have a big enough data set yet
-      --CASE WHEN (stddev(item_list.service_creation) over (PARTITION BY office_id, item_list.program_id)) <> 0
-      --  THEN (item_list.service_creation - avg(item_list.service_creation) over (PARTITION BY office_id, item_list.program_id))
-      --        / (stddev(item_list.service_creation) over (PARTITION BY office_id, item_list.program_id))
-      --  ELSE NULL
-      --END AS service_creation_zscore,
-      -----------------------------------
-      CASE WHEN (stddev(item_list.service_creation_duration) over (PARTITION BY office_id)) <> 0
-        THEN (item_list.service_creation_duration - avg(item_list.service_creation_duration) over (PARTITION BY office_id))
-           / (stddev(item_list.service_creation_duration) over (PARTITION BY office_id))
-        ELSE NULL
-      END AS service_creation_duration_zscore,
-      CASE WHEN (stddev(item_list.waiting_duration) over (PARTITION BY office_id)) <> 0
-        THEN (item_list.waiting_duration - avg(item_list.waiting_duration) over (PARTITION BY office_id))
-           / (stddev(item_list.waiting_duration) over (PARTITION BY office_id))
-        ELSE NULL
-      END AS waiting_duration_zscore,
-      CASE WHEN (stddev(item_list.prep_duration) over (PARTITION BY office_id)) <> 0
-        THEN (item_list.prep_duration - avg(item_list.prep_duration) over (PARTITION BY office_id))
-           / (stddev(item_list.prep_duration) over (PARTITION BY office_id))
-        ELSE NULL
-      END AS prep_duration_zscore,
-      CASE WHEN (stddev(item_list.hold_duration) over (PARTITION BY office_id)) <> 0
-        THEN (item_list.hold_duration - avg(item_list.hold_duration) over (PARTITION BY office_id))
-           / (stddev(item_list.hold_duration) over (PARTITION BY office_id))
-        ELSE NULL
-      END AS hold_duration_zscore,
-      CASE WHEN (stddev(item_list.serve_duration) over (PARTITION BY office_id)) <> 0
-        THEN (item_list.serve_duration - avg(item_list.serve_duration) over (PARTITION BY office_id))
-           / (stddev(item_list.serve_duration) over (PARTITION BY office_id))
-        ELSE NULL
-      END AS serve_duration_zscore,
-      -- End zscore calculations
-      ----------------------
+          -----------------------------------
+          -- A sort field on Channel, so that "in-person" shows first in the sort order
+          CASE WHEN channel = 'in-person'
+             THEN '0-in-person'
+             ELSE channel
+            END AS channel_sort,
+          -----------------------------------
+          -- Add a flag for back office transactions
+          CASE WHEN program_name = 'Back Office' OR channel = 'back-office'
+            THEN 'Back Office'
+            ELSE 'Front Office'
+            END as back_office,
+          CASE WHEN missing_calls_flag_visit = TRUE OR service_creation_flag_visit = TRUE THEN NULL
+            ELSE SUM(service_creation_duration) OVER (PARTITION BY item_list.client_id, item_list.namespace)
+          END AS service_creation_duration_total,
+          CASE WHEN missing_calls_flag_visit = TRUE OR waiting_flag_visit = TRUE THEN NULL
+            ELSE SUM(waiting_duration) OVER (PARTITION BY item_list.client_id, item_list.namespace)
+          END AS waiting_duration_total,
+          CASE WHEN missing_calls_flag_visit = TRUE OR prep_flag_visit = TRUE THEN NULL
+            ELSE SUM(prep_duration) OVER (PARTITION BY item_list.client_id, item_list.namespace)
+          END AS prep_duration_total,
+          CASE WHEN missing_calls_flag_visit = TRUE OR hold_flag_visit = TRUE THEN NULL
+            ELSE SUM(hold_duration) OVER (PARTITION BY item_list.client_id, item_list.namespace)
+          END AS hold_duration_total,
+          CASE WHEN missing_calls_flag_visit = TRUE OR serve_flag_visit = TRUE OR inaccurate_time_visit = TRUE THEN NULL
+            ELSE SUM(serve_duration) OVER (PARTITION BY item_list.client_id, item_list.namespace)
+          END AS serve_duration_total,
+          -----------------------------------
+          -- Calculating zscores so we can filter out outliers
+          -- To calculate the zscore, we use the formula (value - mean) / std_dev
+          -- The std_dev and mean are to be calculated for all values for a given office
+          --  (and with the code change below) program_id
+          -- This is done using a Redshift Window Statement. For example, see:
+          --     https://docs.aws.amazon.com/redshift/latest/dg/r_WF_AVG.html
+          --
+          -- We use the CASE statement to avoid dividing by zero. We could move this logic to the LookML below as well
+          ---
+          -- This example shows how to set it for both office_id and program_id.
+          -- For now we just use office_id as we don't have a big enough data set yet
+          --CASE WHEN (stddev(item_list.service_creation) over (PARTITION BY office_id, item_list.program_id)) <> 0
+          --  THEN (item_list.service_creation - avg(item_list.service_creation) over (PARTITION BY office_id, item_list.program_id))
+          --        / (stddev(item_list.service_creation) over (PARTITION BY office_id, item_list.program_id))
+          --  ELSE NULL
+          --END AS service_creation_zscore,
+          -----------------------------------
+          CASE WHEN (stddev(item_list.service_creation_duration) over (PARTITION BY office_id)) <> 0
+            THEN (item_list.service_creation_duration - avg(item_list.service_creation_duration) over (PARTITION BY office_id))
+               / (stddev(item_list.service_creation_duration) over (PARTITION BY office_id))
+            ELSE NULL
+          END AS service_creation_duration_zscore,
+          CASE WHEN (stddev(item_list.waiting_duration) over (PARTITION BY office_id)) <> 0
+            THEN (item_list.waiting_duration - avg(item_list.waiting_duration) over (PARTITION BY office_id))
+               / (stddev(item_list.waiting_duration) over (PARTITION BY office_id))
+            ELSE NULL
+          END AS waiting_duration_zscore,
+          CASE WHEN (stddev(item_list.prep_duration) over (PARTITION BY office_id)) <> 0
+            THEN (item_list.prep_duration - avg(item_list.prep_duration) over (PARTITION BY office_id))
+               / (stddev(item_list.prep_duration) over (PARTITION BY office_id))
+            ELSE NULL
+          END AS prep_duration_zscore,
+          CASE WHEN (stddev(item_list.hold_duration) over (PARTITION BY office_id)) <> 0
+            THEN (item_list.hold_duration - avg(item_list.hold_duration) over (PARTITION BY office_id))
+               / (stddev(item_list.hold_duration) over (PARTITION BY office_id))
+            ELSE NULL
+          END AS hold_duration_zscore,
+          CASE WHEN (stddev(item_list.serve_duration) over (PARTITION BY office_id)) <> 0
+            THEN (item_list.serve_duration - avg(item_list.serve_duration) over (PARTITION BY office_id))
+               / (stddev(item_list.serve_duration) over (PARTITION BY office_id))
+            ELSE NULL
+          END AS serve_duration_zscore,
+          -- End zscore calculations
+          ----------------------
 
-      office_info.site AS office_name,
-      office_info.officesize AS office_size,
-      office_info.area AS area_number,
-      NULL AS current_area, -- for now, set to NULL as it isn't in this table
-      ----------------------
-      dd.isweekend::BOOLEAN,
-      dd.isholiday::BOOLEAN,
-      dd.sbcquarter, dd.lastdayofpsapayperiod::date,
-      to_char(item_list.welcome_time, 'HH24:00-HH24:59') AS hourly_bucket,
-      CASE WHEN date_part(minute, item_list.welcome_time) < 30
-        THEN to_char(item_list.welcome_time, 'HH24:00-HH24:29')
-        ELSE to_char(item_list.welcome_time, 'HH24:30-HH24:59')
-      END AS half_hour_bucket,
-      to_char(item_list.welcome_time, 'HH24:MI:SS') AS date_time_of_day
-      FROM item_list
+          office_info.site AS office_name,
+          office_info.officesize AS office_size,
+          office_info.area AS area_number,
+          office_info.current_area AS current_area,
+          ----------------------
+          dd.isweekend::BOOLEAN,
+          dd.isholiday::BOOLEAN,
+          dd.sbcquarter, dd.lastdayofpsapayperiod::date,
+          to_char(item_list.welcome_time, 'HH24:00-HH24:59') AS hourly_bucket,
+          CASE WHEN date_part(minute, item_list.welcome_time) < 30
+            THEN to_char(item_list.welcome_time, 'HH24:00-HH24:29')
+            ELSE to_char(item_list.welcome_time, 'HH24:30-HH24:59')
+          END AS half_hour_bucket,
+          to_char(item_list.welcome_time, 'HH24:MI:SS') AS date_time_of_day
+          FROM item_list
 
-      LEFT JOIN service_info ON service_info.client_id = item_list.client_id AND service_info.service_count = item_list.service_count AND service_info.namespace = item_list.namespace
-      LEFT JOIN agent_info ON agent_info.client_id = item_list.client_id AND agent_info.service_count = item_list.service_count AND agent_info.namespace = item_list.namespace
-      LEFT JOIN finish_info ON finish_info.client_id = item_list.client_id AND finish_info.service_count = item_list.service_count AND finish_info.namespace = item_list.namespace
-      LEFT JOIN flags ON flags.client_id = item_list.client_id AND flags.namespace = item_list.namespace
-      LEFT JOIN servicebc.sdpr_office_info AS office_info ON office_info.rmsofficecode = office_id AND end_date IS NULL -- for now, get the most recent office info
-      JOIN servicebc.datedimension AS dd on item_list.welcome_time::date = dd.datekey::date
-      GROUP BY item_list.namespace,
-      item_list.client_id,
-      item_list.service_count,
-      office_id,
-      item_list.welcome_time,
-      item_list.latest_time,
-      transaction_count,
-      item_list.inaccurate_time,
-      status,
-      finish_type,
-      agent_info.agent_id,
-      item_list.service_creation_duration,
-      item_list.serve_duration,
-      item_list.waiting_duration,
-      item_list.prep_duration,
-      item_list.hold_duration,
-      service_creation_flag_visit,
-      waiting_flag_visit,
-      prep_flag_visit,
-      serve_flag_visit,
-      hold_flag_visit,
-      inaccurate_time_visit,
-      missing_calls_flag_visit,
-      status,
-      office_name,
-      office_size,
-      area_number,
-      current_area,
-      office_type,
-      program_id,
-      program_name,
-      parent_id,
-      transaction_name,
-      channel,
-      dd.isweekend,
-      dd.isholiday,
-      dd.sbcquarter, dd.lastdayofpsapayperiod::date
-  ;;
-          # https://docs.looker.com/data-modeling/learning-lookml/caching
-   # distribution_style: all
-  #  sql_trigger_value: SELECT COUNT(*) FROM derived.theq_sdpr_step1 ;;
-}
+          LEFT JOIN service_info ON service_info.client_id = item_list.client_id AND service_info.service_count = item_list.service_count AND service_info.namespace = item_list.namespace
+          LEFT JOIN agent_info ON agent_info.client_id = item_list.client_id AND agent_info.service_count = item_list.service_count AND agent_info.namespace = item_list.namespace
+          LEFT JOIN finish_info ON finish_info.client_id = item_list.client_id AND finish_info.service_count = item_list.service_count AND finish_info.namespace = item_list.namespace
+          LEFT JOIN flags ON flags.client_id = item_list.client_id AND flags.namespace = item_list.namespace
+          LEFT JOIN servicebc.office_info ON servicebc.office_info.rmsofficecode = office_id AND end_date IS NULL -- for now, get the most recent office info
+          JOIN servicebc.datedimension AS dd on item_list.welcome_time::date = dd.datekey::date
+          GROUP BY item_list.namespace,
+          item_list.client_id,
+          item_list.service_count,
+          office_id,
+          item_list.welcome_time,
+          item_list.latest_time,
+          transaction_count,
+          item_list.inaccurate_time,
+          status,
+          finish_type,
+          agent_info.agent_id,
+          idir,
+          item_list.service_creation_duration,
+          item_list.serve_duration,
+          item_list.waiting_duration,
+          item_list.prep_duration,
+          item_list.hold_duration,
+          service_creation_flag_visit,
+          waiting_flag_visit,
+          prep_flag_visit,
+          serve_flag_visit,
+          hold_flag_visit,
+          inaccurate_time_visit,
+          missing_calls_flag_visit,
+          no_wait_visit,
+          status,
+          office_name,
+          office_size,
+          area_number,
+          current_area,
+          office_type,
+          program_id,
+          program_name,
+          parent_id,
+          transaction_name,
+          channel,
+          dd.isweekend,
+          dd.isholiday,
+          dd.sbcquarter, dd.lastdayofpsapayperiod::date          # https://docs.looker.com/data-modeling/learning-lookml/caching
+       # distribution_style: all
+      #  sql_trigger_value: SELECT COUNT(*) FROM derived.theq_sdpr_step1 ;;
+  }
 
 
   dimension: service_creation_flag {
