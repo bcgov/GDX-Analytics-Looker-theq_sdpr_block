@@ -78,7 +78,7 @@ view: theq_sdpr_dev {
         parent_id,
         program_name,
         transaction_name,
-        ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace) AS service_info_ranked
+        ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace ORDER BY event_time DESC) AS service_info_ranked
         FROM pre
         WHERE event_name = 'chooseservice'
         ORDER BY event_time DESC
@@ -99,7 +99,7 @@ view: theq_sdpr_dev {
         service_count,
         agent_id,
         idir,
-        ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace) AS agent_info_ranked
+        ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace ORDER BY event_time DESC) AS agent_info_ranked
         FROM pre
         WHERE event_name <> 'customerleft'
         ORDER BY event_time DESC
@@ -112,6 +112,7 @@ view: theq_sdpr_dev {
       ),
       finish_info_pre AS (
         SELECT
+        event_time,
         namespace,
         client_id,
         service_count,
@@ -121,10 +122,10 @@ view: theq_sdpr_dev {
           WHEN (inaccurate_time) THEN 'Inaccurate Time'
           WHEN (event_name IN ('finish','finishstopped')) THEN 'Finished'
           ELSE 'Customer Left (' || leave_status || ')' END AS finish_type,
-        ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace) AS finish_info_ranked
+        ROW_NUMBER() OVER (PARTITION BY client_id, service_count, namespace ORDER BY event_time DESC) AS finish_info_ranked
         FROM pre
         WHERE event_name IN ('finish','finishstopped','customerleft')
-        GROUP BY namespace, client_id, service_count,finish_type,transaction_count,inaccurate_time
+        GROUP BY namespace, client_id, service_count,finish_type,transaction_count,inaccurate_time, event_time
       ),
       finish_info AS ( -- we get our service choices by taking the final choices made by chooseservice for a given client_id and service_count
         SELECT
@@ -389,9 +390,11 @@ view: theq_sdpr_dev {
           channel,
           dd.isweekend,
           dd.isholiday,
-          dd.sbcquarter, dd.lastdayofpsapayperiod::date          # https://docs.looker.com/data-modeling/learning-lookml/caching
+          dd.sbcquarter, dd.lastdayofpsapayperiod::date
+          ;;
+          # https://docs.looker.com/data-modeling/learning-lookml/caching
        # distribution_style: all
-      #  sql_trigger_value: SELECT COUNT(*) FROM derived.theq_sdpr_step1 ;;
+      #  sql_trigger_value: SELECT COUNT(*) FROM derived.theq_sdpr_step1
   }
 
 
@@ -1168,6 +1171,11 @@ view: theq_sdpr_dev {
   dimension: agent_id {
     type: number
     sql: ${TABLE}.agent_id ;;
+  }
+  dimension: idir {
+    type: string
+    label: "IDIR"
+    sql: ${TABLE}.idir ;;
   }
   dimension: program_id {
     description: "The internal ID number for this program."
